@@ -7,7 +7,7 @@
 | アプリ名 | おやすみん |
 | バージョン | 1.0.0 |
 | プラットフォーム | Web (iOS対応準備済み) |
-| URL | https://riechikamori.github.io/oyasumin/ |
+| URL | https://sekimachi-design.github.io/oyasumin/ |
 | 技術スタック | React Native + Expo (expo-router) |
 | データ保存 | ローカル (AsyncStorage / localStorage) |
 | アカウント | 不要 |
