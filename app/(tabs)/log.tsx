@@ -24,7 +24,7 @@ export default function LogScreen() {
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [note, setNote] = useState('');
   const [goodNight, setGoodNight] = useState(false);
-  const { addLog, todayLog } = useSleepLogs();
+  const { logs, addLog, todayLog } = useSleepLogs();
 
   const opacity = useSharedValue(1);
 
@@ -38,64 +38,115 @@ export default function LogScreen() {
     setGoodNight(true);
   }, [opacity, selectedMood, note, addLog]);
 
-  if (todayLog && !goodNight) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.doneContainer}>
-          <Text style={styles.doneEmoji}>💤</Text>
-          <Text style={styles.doneTitle}>今日は記録済み</Text>
-          <Text style={styles.doneSub}>おやすみなさい</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const recentLogs = [...logs]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 7);
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>🌙 締めくくりセレモニー</Text>
-        <Text style={styles.subtitle}>今日の自分をねぎらおう</Text>
+        <Text style={styles.title}>📝 おやすみログ</Text>
+        <Text style={styles.subtitle}>毎日の記録を残そう</Text>
 
-        <Card color={c.card}>
-          <Text style={styles.cardTitle}>今日の気分は？</Text>
-          <View style={styles.moodRow}>
-            {moodOptions.map((mood, i) => (
-              <Pressable
-                key={i}
-                style={[
-                  styles.moodButton,
-                  selectedMood === i && styles.moodSelected,
-                ]}
-                onPress={() => setSelectedMood(i)}
-              >
-                <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <TextInput
-            style={styles.noteInput}
-            placeholder="今日の一言..."
-            placeholderTextColor={c.textSecondary}
-            value={note}
-            onChangeText={setNote}
-          />
-        </Card>
+        {todayLog && !goodNight ? (
+          <Card color={c.card}>
+            <View style={styles.doneRow}>
+              <Text style={styles.doneEmoji}>✅</Text>
+              <View>
+                <Text style={styles.doneTitle}>今日は記録済み</Text>
+                <Text style={styles.doneSub}>
+                  {todayLog.mood !== null
+                    ? `気分: ${moodOptions[todayLog.mood]?.emoji ?? ''}`
+                    : 'おやすみなさい'}
+                  {todayLog.note ? ` — ${todayLog.note}` : ''}
+                </Text>
+              </View>
+            </View>
+          </Card>
+        ) : !goodNight ? (
+          <>
+            <Card color={c.card}>
+              <Text style={styles.cardTitle}>🌙 今日の締めくくり</Text>
+              <Text style={styles.cardSub}>気分を選んで、今日を終えよう</Text>
+              <View style={styles.moodRow}>
+                {moodOptions.map((mood, i) => (
+                  <Pressable
+                    key={i}
+                    style={[
+                      styles.moodButton,
+                      selectedMood === i && styles.moodSelected,
+                    ]}
+                    onPress={() => setSelectedMood(i)}
+                  >
+                    <Text style={styles.moodEmoji}>{mood.emoji}</Text>
+                    <Text style={[
+                      styles.moodLabel,
+                      selectedMood === i && { color: c.accent },
+                    ]}>
+                      {mood.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={styles.noteInput}
+                placeholder="今日の一言（任意）..."
+                placeholderTextColor={c.textSecondary}
+                value={note}
+                onChangeText={setNote}
+              />
+            </Card>
 
-        {!goodNight ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.goodNightButton,
-              pressed && { opacity: 0.8 },
-            ]}
-            onPress={handleGoodNight}
-          >
-            <Text style={styles.goodNightText}>おやすみ 🌙</Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.goodNightButton,
+                pressed && { opacity: 0.8 },
+              ]}
+              onPress={handleGoodNight}
+            >
+              <Text style={styles.goodNightText}>おやすみ 🌙</Text>
+            </Pressable>
+          </>
         ) : (
-          <View style={styles.goodNightMessage}>
-            <Text style={styles.goodNightDone}>おやすみなさい 💤</Text>
-            <Text style={styles.goodNightSub}>また明日ね</Text>
-          </View>
+          <Card color={c.card}>
+            <View style={styles.goodNightMessage}>
+              <Text style={styles.goodNightDone}>おやすみなさい 💤</Text>
+              <Text style={styles.goodNightSub}>また明日ね</Text>
+            </View>
+          </Card>
+        )}
+
+        {recentLogs.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>最近の記録</Text>
+            {recentLogs.map((log) => (
+              <Card key={log.date} color={c.card}>
+                <View style={styles.logRow}>
+                  <Text style={styles.logDate}>{formatDate(log.date)}</Text>
+                  <Text style={styles.logMood}>
+                    {log.mood !== null ? moodOptions[log.mood]?.emoji ?? '—' : '—'}
+                  </Text>
+                  <Text style={styles.logNote} numberOfLines={1}>
+                    {log.note || '—'}
+                  </Text>
+                </View>
+              </Card>
+            ))}
+          </>
+        )}
+
+        {recentLogs.length === 0 && (todayLog || goodNight) === false && (
+          <Card color={c.card} style={styles.emptyCard}>
+            <Text style={styles.emptyEmoji}>🌟</Text>
+            <Text style={styles.emptyText}>
+              上の「おやすみ」ボタンで{'\n'}最初の記録をつけよう
+            </Text>
+          </Card>
         )}
       </ScrollView>
 
@@ -131,7 +182,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: c.text,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  cardSub: {
+    fontSize: 13,
+    color: c.textSecondary,
+    marginBottom: 16,
   },
   moodRow: {
     flexDirection: 'row',
@@ -139,6 +195,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   moodButton: {
+    alignItems: 'center',
     padding: 10,
     borderRadius: 12,
   },
@@ -149,6 +206,11 @@ const styles = StyleSheet.create({
   },
   moodEmoji: {
     fontSize: 32,
+  },
+  moodLabel: {
+    fontSize: 11,
+    color: c.textSecondary,
+    marginTop: 4,
   },
   noteInput: {
     backgroundColor: c.bg,
@@ -164,7 +226,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 8,
   },
   goodNightText: {
     fontSize: 18,
@@ -173,8 +235,7 @@ const styles = StyleSheet.create({
   },
   goodNightMessage: {
     alignItems: 'center',
-    marginTop: 20,
-    padding: 24,
+    padding: 16,
   },
   goodNightDone: {
     fontSize: 24,
@@ -190,23 +251,64 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
   },
-  doneContainer: {
-    flex: 1,
+  doneRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
   },
   doneEmoji: {
-    fontSize: 60,
-    marginBottom: 16,
+    fontSize: 28,
   },
   doneTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: c.text,
   },
   doneSub: {
-    fontSize: 14,
+    fontSize: 13,
     color: c.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: c.text,
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  logRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: c.textSecondary,
+    width: 40,
+  },
+  logMood: {
+    fontSize: 20,
+    width: 30,
+  },
+  logNote: {
+    fontSize: 14,
+    color: c.text,
+    flex: 1,
+  },
+  emptyCard: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    marginTop: 24,
+  },
+  emptyEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: c.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });
