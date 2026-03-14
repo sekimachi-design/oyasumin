@@ -24,7 +24,7 @@
 
 ### 1. ウェルカム画面（初回起動時）
 
-![ウェルカム画面](../screenshots/05_welcome.png)
+<img src="../screenshots/05_welcome.png" width="195" />
 
 - 星空風のアニメーション背景にグラデーション効果
 - アプリ名「おやすみん」とキャッチコピー「毎晩のおやすみ習慣をやさしくサポート」を表示
@@ -33,7 +33,7 @@
 
 ### 2. セットアップ画面（初回起動時）
 
-![セットアップ画面](../screenshots/06_setup.png)
+<img src="../screenshots/06_setup.png" width="195" />
 
 | 入力項目 | 内容 |
 |---------|------|
@@ -46,7 +46,7 @@
 
 ### 3. ホーム画面（タブ: ホーム）
 
-![ホーム画面](../screenshots/01_home.png)
+<img src="../screenshots/01_home.png" width="195" />
 
 シンプルなダッシュボード画面。迷わず就寝準備へ進める設計。
 
@@ -68,7 +68,7 @@
 
 ### 4. ねる画面（タブ: ねる）
 
-![ねる画面](../screenshots/02_night.png)
+<img src="../screenshots/02_night.png" width="195" />
 
 就寝準備のメイン画面。環境音が主役、ストレッチはオプション。
 
@@ -119,7 +119,7 @@
 
 ### 5. にっき画面（タブ: にっき）
 
-![にっき画面](../screenshots/03_log.png)
+<img src="../screenshots/03_log.png" width="195" />
 
 | セクション | 内容 |
 |-----------|------|
@@ -134,7 +134,7 @@
 
 ### 6. スコア画面（タブ: スコア）
 
-![スコア画面](../screenshots/04_report.png)
+<img src="../screenshots/04_report.png" width="195" />
 
 | セクション | 内容 |
 |-----------|------|
