@@ -49,13 +49,13 @@ export type Stretch = {
 export const stretches: Stretch[] = [
   {
     id: 'breathing',
-    name: '深呼吸',
-    emoji: '🌬️',
+    name: '深呼吸と瞑想',
+    emoji: '🧘',
     image: require('../assets/images/stretch/kneehug.png'),
     phases: [
-      { text: '鼻からゆっくり4秒かけて吸います', duration: 8 },
-      { text: '7秒間 息を止めます', duration: 8 },
-      { text: '口から8秒かけてふーっと吐きます', duration: 8 },
+      { text: '目を閉じて楽な姿勢で座ります', duration: 20 },
+      { text: '鼻から吸って 口からふーっと吐きます', duration: 20 },
+      { text: '呼吸だけに集中 何も考えなくてOK', duration: 20 },
     ],
   },
   {
@@ -64,8 +64,8 @@ export const stretches: Stretch[] = [
     emoji: '🙆',
     image: require('../assets/images/stretch/neck.png'),
     phases: [
-      { text: '右腕をまっすぐ前に伸ばし\n左手でひじを体に引き寄せます', duration: 10 },
-      { text: '反対の腕も同じように\nゆっくり伸ばします', duration: 10, flipImage: true },
+      { text: '右腕をまっすぐ前に伸ばし\n左手でひじを体に引き寄せます', duration: 30 },
+      { text: '反対の腕も同じように\nゆっくり伸ばします', duration: 30, flipImage: true },
     ],
   },
   {
@@ -74,8 +74,8 @@ export const stretches: Stretch[] = [
     emoji: '💆',
     image: require('../assets/images/stretch/shoulder.png'),
     phases: [
-      { text: '両手を肩に置いて\nひじで後ろにゆっくり10回', duration: 15 },
-      { text: 'そのまま前方向にも\nゆっくり10回まわします', duration: 15, flipImage: true },
+      { text: '両手を肩に置いて\nひじで後ろにゆっくり回します', duration: 30 },
+      { text: 'そのまま前方向にも\nゆっくり回します', duration: 30, flipImage: true },
     ],
   },
   {
@@ -84,19 +84,8 @@ export const stretches: Stretch[] = [
     emoji: '🔄',
     image: require('../assets/images/stretch/twist.png'),
     phases: [
-      { text: '右ひざを立てて左足の外側へ\n上体を右にゆっくりひねります', duration: 15 },
-      { text: '反対側も同じように\n上体を左にひねります', duration: 15, flipImage: true },
-    ],
-  },
-  {
-    id: 'meditation',
-    name: 'おやすみ瞑想',
-    emoji: '🧘',
-    image: require('../assets/images/stretch/kneehug.png'),
-    phases: [
-      { text: 'あぐらで手をひざに置き\n目を閉じます', duration: 10 },
-      { text: '鼻からゆっくり吸って\n口からふーっと吐きます', duration: 10 },
-      { text: '何も考えずそのまま\n呼吸だけに集中', duration: 10 },
+      { text: '右ひざを立てて左足の外側へ\n上体を右にゆっくりひねります', duration: 30 },
+      { text: '反対側も同じように\n上体を左にひねります', duration: 30, flipImage: true },
     ],
   },
   {
@@ -105,9 +94,9 @@ export const stretches: Stretch[] = [
     emoji: '😌',
     image: require('../assets/images/stretch/relax.png'),
     phases: [
-      { text: '仰向けで手足を楽に広げます', duration: 10 },
-      { text: 'つま先から順に\nゆっくり力を抜いていきます', duration: 10 },
-      { text: '全身リラックス\nそのまま眠ってもOK', duration: 10 },
+      { text: '仰向けで手足を楽に広げます', duration: 20 },
+      { text: 'つま先から順に\nゆっくり力を抜いていきます', duration: 20 },
+      { text: '全身リラックス\nそのまま眠ってもOK', duration: 20 },
     ],
   },
 ];

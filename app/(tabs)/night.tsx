@@ -12,10 +12,7 @@ import {
   Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import Svg, { Circle } from 'react-native-svg';
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+import { useLocalSearchParams } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { stretches } from '../../constants/Content';
 import { Card } from '../../components/Card';
@@ -38,7 +35,6 @@ export default function NightScreen() {
   const [phaseDuration, setPhaseDuration] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ringAnim = useRef(new Animated.Value(1)).current;
-  const router = useRouter();
   const params = useLocalSearchParams<{ trackId?: string; openStretch?: string }>();
   const audio = useAudio();
 
@@ -64,6 +60,8 @@ export default function NightScreen() {
   const currentStretch = stretches[currentStretchIndex];
   const currentPhase = currentStretch?.phases[currentPhaseIndex];
 
+  const stretchIndexRef = useRef(0);
+  const phaseIndexRef = useRef(0);
   const bgmVolume = useRef(new Animated.Value(1)).current;
 
   const fadeOutBgm = useCallback(() => {
@@ -106,6 +104,8 @@ export default function NightScreen() {
   const startStretch = useCallback(() => {
     bgmPlayer.loop = true;
     bgmPlayer.play();
+    stretchIndexRef.current = 0;
+    phaseIndexRef.current = 0;
     setStretchMode(true);
     setStretchDone(false);
     setCurrentStretchIndex(0);
@@ -125,39 +125,41 @@ export default function NightScreen() {
     timerRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          setCurrentPhaseIndex((pi) => {
-            const stretch = stretches[currentStretchIndex];
-            if (pi < stretch.phases.length - 1) {
-              const nextPi = pi + 1;
-              const dur = stretch.phases[nextPi].duration;
-              setCountdown(dur);
-              setPhaseDuration(dur);
-              startRingAnim(dur);
-              return nextPi;
-            }
-            setCurrentStretchIndex((si) => {
-              if (si < stretches.length - 1) {
-                const nextSi = si + 1;
-                const dur = stretches[nextSi].phases[0].duration;
-                setCurrentPhaseIndex(0);
-                setCountdown(dur);
-                setPhaseDuration(dur);
-                startRingAnim(dur);
-                return nextSi;
-              }
-              setStretchDone(true);
-              fadeOutBgm();
-              return si;
-            });
-            return pi;
-          });
+          const si = stretchIndexRef.current;
+          const pi = phaseIndexRef.current;
+          const stretch = stretches[si];
+
+          if (pi < stretch.phases.length - 1) {
+            const nextPi = pi + 1;
+            const dur = stretch.phases[nextPi].duration;
+            phaseIndexRef.current = nextPi;
+            setCurrentPhaseIndex(nextPi);
+            setPhaseDuration(dur);
+            startRingAnim(dur);
+            return dur;
+          }
+
+          if (si < stretches.length - 1) {
+            const nextSi = si + 1;
+            const dur = stretches[nextSi].phases[0].duration;
+            stretchIndexRef.current = nextSi;
+            phaseIndexRef.current = 0;
+            setCurrentStretchIndex(nextSi);
+            setCurrentPhaseIndex(0);
+            setPhaseDuration(dur);
+            startRingAnim(dur);
+            return dur;
+          }
+
+          setStretchDone(true);
+          fadeOutBgm();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return clearTimer;
-  }, [stretchMode, stretchDone, currentStretchIndex, clearTimer]);
+  }, [stretchMode, stretchDone, clearTimer, startRingAnim, fadeOutBgm]);
 
   const handleCloseStretch = () => {
     clearTimer();
@@ -169,9 +171,12 @@ export default function NightScreen() {
   };
 
   const handleSkip = () => {
-    if (currentStretchIndex < stretches.length - 1) {
-      const next = currentStretchIndex + 1;
+    const si = stretchIndexRef.current;
+    if (si < stretches.length - 1) {
+      const next = si + 1;
       const dur = stretches[next].phases[0].duration;
+      stretchIndexRef.current = next;
+      phaseIndexRef.current = 0;
       setCurrentStretchIndex(next);
       setCurrentPhaseIndex(0);
       setCountdown(dur);
@@ -179,17 +184,41 @@ export default function NightScreen() {
       startRingAnim(dur);
     } else {
       setStretchDone(true);
+      fadeOutBgm();
     }
   };
 
-  const timerSize = 80;
-  const timerStroke = 5;
-  const timerRadius = (timerSize - timerStroke) / 2;
-  const timerCircumference = 2 * Math.PI * timerRadius;
-  const animatedDashOffset = ringAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [timerCircumference, 0],
-  });
+  const totalDuration = (si: number) =>
+    stretches[si].phases.reduce((sum, p) => sum + p.duration, 0);
+
+  const formatDur = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}秒`;
+  };
+
+  const remainingTotal = (() => {
+    if (!stretchMode || stretchDone) return 0;
+    let rem = countdown;
+    for (let p = currentPhaseIndex + 1; p < currentStretch.phases.length; p++) {
+      rem += currentStretch.phases[p].duration;
+    }
+    for (let s = currentStretchIndex + 1; s < stretches.length; s++) {
+      rem += totalDuration(s);
+    }
+    return rem;
+  })();
+
+  const currentStretchProgress = (() => {
+    if (!stretchMode || stretchDone) return 0;
+    const total = totalDuration(currentStretchIndex);
+    let remaining = countdown;
+    for (let p = currentPhaseIndex + 1; p < currentStretch.phases.length; p++) {
+      remaining += currentStretch.phases[p].duration;
+    }
+    return ((total - remaining) / total) * 100;
+  })();
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -223,6 +252,31 @@ export default function NightScreen() {
                     <Text style={styles.stretchCloseX}>✕</Text>
                   </Pressable>
                 </View>
+                <Text style={styles.remainingText}>
+                  残り {formatDur(remainingTotal)}
+                </Text>
+
+                <View style={styles.segmentBar}>
+                  {stretches.map((s, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.segment,
+                        { flex: totalDuration(i) },
+                        i < currentStretchIndex && styles.segmentDone,
+                      ]}
+                    >
+                      {i === currentStretchIndex && (
+                        <View
+                          style={[
+                            styles.segmentFill,
+                            { width: `${currentStretchProgress}%` },
+                          ]}
+                        />
+                      )}
+                    </View>
+                  ))}
+                </View>
 
                 <View style={styles.stretchImageContainer}>
                   <Image
@@ -233,54 +287,44 @@ export default function NightScreen() {
                     ]}
                     resizeMode="contain"
                   />
-                </View>
-
-                <View style={styles.stepCard}>
-                  <Text style={styles.phaseLabel}>
-                    {currentPhaseIndex + 1} / {currentStretch.phases.length}
-                  </Text>
                   <Text style={styles.stepText}>
                     {currentPhase?.text.replace(/\n/g, ' ')}
                   </Text>
                 </View>
 
-                <View style={styles.timerContainer}>
-                  <Svg width={timerSize} height={timerSize}>
-                    <Circle
-                      cx={timerSize / 2}
-                      cy={timerSize / 2}
-                      r={timerRadius}
-                      stroke={c.border}
-                      strokeWidth={timerStroke}
-                      fill="none"
-                    />
-                    <AnimatedCircle
-                      cx={timerSize / 2}
-                      cy={timerSize / 2}
-                      r={timerRadius}
-                      stroke={c.accent}
-                      strokeWidth={timerStroke}
-                      fill="none"
-                      strokeDasharray={timerCircumference}
-                      strokeDashoffset={animatedDashOffset}
-                      strokeLinecap="round"
-                      rotation="-90"
-                      origin={`${timerSize / 2}, ${timerSize / 2}`}
-                    />
-                  </Svg>
-                  <Text style={styles.clockText}>{countdown}</Text>
-                </View>
 
-                <View style={styles.stretchProgressDots}>
-                  {stretches.map((_, i) => (
+                <View style={styles.timeline}>
+                  {stretches.map((s, i) => (
                     <View
                       key={i}
                       style={[
-                        styles.dot,
-                        i === currentStretchIndex && styles.dotActive,
-                        i < currentStretchIndex && styles.dotDone,
+                        styles.timelineItem,
+                        i === currentStretchIndex && styles.timelineItemActive,
                       ]}
-                    />
+                    >
+                      <Text style={[
+                        styles.timelineEmoji,
+                        i < currentStretchIndex && styles.timelineDone,
+                      ]}>
+                        {i < currentStretchIndex ? '✓' : s.emoji}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.timelineName,
+                          i === currentStretchIndex && styles.timelineNameActive,
+                          i < currentStretchIndex && styles.timelineDone,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {s.name}
+                      </Text>
+                      <Text style={[
+                        styles.timelineDur,
+                        i < currentStretchIndex && styles.timelineDone,
+                      ]}>
+                        {formatDur(totalDuration(i))}
+                      </Text>
+                    </View>
                   ))}
                 </View>
 
@@ -293,120 +337,103 @@ export default function NightScreen() {
         ) : (
           <>
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>🌙 ナイトモード</Text>
-              <Text style={styles.headerSub}>リラックスして眠りに備えよう</Text>
+              <Text style={styles.headerTitle}>おやすみサウンド</Text>
+              <Text style={styles.headerSub}>聴きたい音をタップ</Text>
             </View>
 
-            <Card color={c.card}>
-              <Text style={styles.cardLabel}>サウンド</Text>
-              <View style={styles.trackGrid}>
-                {TRACKS.map((track) => (
-                  <Pressable
-                    key={track.id}
-                    style={{ width: cardWidth }}
-                    onPress={() => handleTrackSelect(track.id)}
+            {TRACKS.filter(t => ['rain', 'fire', 'ocean'].includes(t.id)).map((track) => {
+              const isActive = audio.currentTrack?.id === track.id;
+              return (
+                <Pressable
+                  key={track.id}
+                  onPress={() => {
+                    if (isActive) {
+                      audio.togglePlayPause();
+                    } else {
+                      handleTrackSelect(track.id);
+                    }
+                  }}
+                >
+                  <ImageBackground
+                    source={track.image}
+                    style={[styles.soundCard, isActive && styles.soundCardActive]}
+                    imageStyle={styles.soundCardBg}
                   >
-                    <ImageBackground
-                      source={track.image}
-                      style={[
-                        styles.trackCard,
-                        audio.currentTrack?.id === track.id && styles.trackCardActive,
-                      ]}
-                      imageStyle={styles.trackCardImage}
-                    >
-                      <View style={[
-                        styles.trackOverlay,
-                        audio.currentTrack?.id === track.id && styles.trackOverlayActive,
-                      ]}>
-                        <Text style={styles.trackIcon}>{track.icon}</Text>
-                        <Text style={styles.trackTitle}>{track.title}</Text>
-                      </View>
-                    </ImageBackground>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Text style={[styles.cardLabel, { marginTop: 12 }]}>タイマー</Text>
-              <View style={styles.timerRow}>
-                {TIMER_OPTIONS.map((opt) => (
-                  <Pressable
-                    key={opt.minutes}
-                    style={[
-                      styles.timerButton,
-                      selectedTimer === opt.minutes && styles.timerActive,
-                    ]}
-                    onPress={() => setSelectedTimer(opt.minutes)}
-                  >
-                    <Text style={[
-                      styles.timerText,
-                      selectedTimer === opt.minutes && styles.timerTextActive,
-                    ]}>
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </Card>
+                    <View style={[styles.soundOverlay, isActive && styles.soundOverlayActive]}>
+                      <Text style={styles.soundIcon}>{track.icon}</Text>
+                      <Text style={styles.soundTitle}>{track.title}</Text>
+                      {isActive && (
+                        <Text style={styles.soundBadge}>
+                          {audio.isPlaying ? '▶ 再生中' : '⏸ 停止中'}
+                        </Text>
+                      )}
+                    </View>
+                  </ImageBackground>
+                </Pressable>
+              );
+            })}
 
             {audio.currentTrack && (
-              <Card color={c.card}>
-                <View style={styles.playerRow}>
-                  <Text style={styles.playerIcon}>{audio.currentTrack.icon}</Text>
-                  <View style={styles.playerInfo}>
-                    <Text style={styles.playerTitle}>{audio.currentTrack.title}</Text>
-                    {audio.remainingSeconds > 0 && (
-                      <Text style={styles.playerSub}>
-                        残り {audio.formatRemaining()}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.controlsRow}>
-                    <Pressable
-                      style={styles.playBtn}
-                      onPress={audio.togglePlayPause}
-                    >
-                      <Text style={styles.playBtnIcon}>
-                        {audio.isPlaying ? '⏸' : '▶'}
-                      </Text>
-                    </Pressable>
-                    <Pressable style={styles.stopBtn} onPress={audio.stop}>
-                      <Text style={styles.stopBtnIcon}>⏹</Text>
-                    </Pressable>
-                  </View>
+              <View style={styles.miniPlayer}>
+                <View style={styles.miniPlayerLeft}>
+                  <Text style={styles.miniPlayerIcon}>{audio.currentTrack.icon}</Text>
+                  <Text style={styles.miniPlayerTitle}>{audio.currentTrack.title}</Text>
+                  {audio.remainingSeconds > 0 && (
+                    <Text style={styles.miniPlayerTime}>
+                      {audio.formatRemaining()}
+                    </Text>
+                  )}
                 </View>
-              </Card>
+                <View style={styles.miniPlayerRight}>
+                  <Pressable style={styles.miniPlayerBtn} onPress={audio.togglePlayPause}>
+                    <Text style={styles.miniPlayerBtnText}>
+                      {audio.isPlaying ? '⏸' : '▶'}
+                    </Text>
+                  </Pressable>
+                  <Pressable style={styles.miniPlayerStopBtn} onPress={audio.stop}>
+                    <Text style={styles.miniPlayerStopText}>⏹</Text>
+                  </Pressable>
+                </View>
+              </View>
             )}
 
-            <Card color={c.card}>
-              <Pressable
-                style={styles.stretchEntryRow}
-                onPress={startStretch}
-              >
-                <View>
-                  <Text style={styles.stretchHeader}>🌙 おやすみルーティン</Text>
-                  <Text style={styles.stretchDesc}>深呼吸＋ストレッチで眠りやすい体に</Text>
-                </View>
-                <View style={styles.stretchStartBtn}>
-                  <Text style={styles.stretchStartText}>はじめる</Text>
-                </View>
-              </Pressable>
-            </Card>
+            <View style={styles.timerRow}>
+              {TIMER_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.minutes}
+                  style={[
+                    styles.timerButton,
+                    selectedTimer === opt.minutes && styles.timerActive,
+                  ]}
+                  onPress={() => setSelectedTimer(opt.minutes)}
+                >
+                  <Text style={[
+                    styles.timerText,
+                    selectedTimer === opt.minutes && styles.timerTextActive,
+                  ]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.stretchDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>もっとリラックスしたいときは</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable style={styles.stretchOptionBtn} onPress={startStretch}>
+              <Text style={styles.stretchOptionEmoji}>🧘</Text>
+              <View style={styles.stretchOptionInfo}>
+                <Text style={styles.stretchOptionTitle}>おやすみストレッチ</Text>
+                <Text style={styles.stretchOptionDesc}>5分で体をほぐして眠りやすく</Text>
+              </View>
+              <Text style={styles.stretchOptionArrow}>▶</Text>
+            </Pressable>
           </>
         )}
       </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.bottomCta,
-            pressed && { opacity: 0.8 },
-          ]}
-          onPress={() => router.push('/log')}
-        >
-          <Text style={styles.bottomCtaText}>おやすみ記録をつける</Text>
-          <Text style={styles.bottomCtaArrow}>→</Text>
-        </Pressable>
-      </View>
     </SafeAreaView>
   );
 }
@@ -418,7 +445,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
@@ -435,103 +462,103 @@ const styles = StyleSheet.create({
     color: c.textSecondary,
     marginTop: 4,
   },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: c.textSecondary,
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  cardLabel: {
-    fontSize: 13,
-    color: c.textSecondary,
-    marginBottom: 10,
-  },
-  trackGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: cardGap,
-  },
-  trackCard: {
-    width: '100%',
+  soundCard: {
     height: 100,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
+    marginBottom: 10,
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  trackCardActive: {
+  soundCardActive: {
     borderColor: c.accent,
   },
-  trackCardImage: {
-    borderRadius: 10,
+  soundCardBg: {
+    borderRadius: 14,
   },
-  trackOverlay: {
+  soundOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trackOverlayActive: {
-    backgroundColor: 'rgba(200,160,100,0.25)',
-  },
-  trackIcon: {
-    fontSize: 28,
-    marginBottom: 4,
-  },
-  trackTitle: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    gap: 12,
   },
-  playerIcon: {
+  soundOverlayActive: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  soundIcon: {
     fontSize: 32,
-    marginRight: 12,
   },
-  playerInfo: {
+  soundTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
     flex: 1,
   },
-  playerTitle: {
-    fontSize: 17,
+  soundBadge: {
+    fontSize: 12,
+    color: c.accent,
+    fontWeight: '600',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  miniPlayer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: c.card,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  miniPlayerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniPlayerIcon: {
+    fontSize: 20,
+  },
+  miniPlayerTitle: {
+    fontSize: 14,
     fontWeight: '600',
     color: c.text,
   },
-  playerSub: {
-    fontSize: 13,
+  miniPlayerTime: {
+    fontSize: 12,
     color: c.accent,
-    marginTop: 2,
   },
-  controlsRow: {
+  miniPlayerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
-  playBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  miniPlayerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: c.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playBtnIcon: {
-    fontSize: 18,
+  miniPlayerBtnText: {
+    fontSize: 14,
     color: '#1E1612',
   },
-  stopBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  miniPlayerStopBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stopBtnIcon: {
-    fontSize: 14,
+  miniPlayerStopText: {
+    fontSize: 12,
     color: c.text,
   },
   timerRow: {
@@ -585,33 +612,52 @@ const styles = StyleSheet.create({
     color: c.accent,
     marginTop: 4,
   },
-  stretchEntryRow: {
+  stretchDivider: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 16,
+    gap: 12,
   },
-  stretchHeader: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: c.text,
-    marginBottom: 4,
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: c.border,
   },
-  stretchDesc: {
-    fontSize: 13,
+  dividerText: {
+    fontSize: 12,
     color: c.textSecondary,
   },
-  stretchStartBtn: {
-    backgroundColor: c.accent + '25',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  stretchOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: c.card,
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: c.accent,
+    borderColor: c.border,
   },
-  stretchStartText: {
-    fontSize: 14,
+  stretchOptionEmoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  stretchOptionInfo: {
+    flex: 1,
+  },
+  stretchOptionTitle: {
+    fontSize: 15,
     fontWeight: '600',
-    color: c.accent,
+    color: c.text,
+  },
+  stretchOptionDesc: {
+    fontSize: 12,
+    color: c.textSecondary,
+    marginTop: 2,
+  },
+  stretchOptionArrow: {
+    fontSize: 14,
+    color: c.textSecondary,
+    marginLeft: 8,
   },
   stretchDoneContainer: {
     alignItems: 'center',
@@ -680,6 +726,7 @@ const styles = StyleSheet.create({
     color: c.text,
     lineHeight: 24,
     textAlign: 'center',
+    marginTop: 12,
   },
   timerContainer: {
     alignItems: 'center',
@@ -692,24 +739,71 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: c.accent,
   },
-  stretchProgressDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 16,
+  remainingText: {
+    fontSize: 12,
+    color: c.textSecondary,
+    marginTop: 4,
+    marginBottom: 10,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  segmentBar: {
+    flexDirection: 'row',
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    gap: 2,
+    marginBottom: 12,
+  },
+  segment: {
+    height: 4,
+    borderRadius: 2,
     backgroundColor: c.border,
   },
-  dotActive: {
+  segmentDone: {
     backgroundColor: c.accent,
-    width: 20,
   },
-  dotDone: {
-    backgroundColor: c.accent + '60',
+  segmentFill: {
+    height: '100%',
+    backgroundColor: c.accent,
+    borderRadius: 2,
+  },
+  timeline: {
+    marginTop: 16,
+    gap: 6,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  timelineItemActive: {
+    backgroundColor: c.accent + '15',
+    borderWidth: 1,
+    borderColor: c.accent + '40',
+  },
+  timelineEmoji: {
+    fontSize: 16,
+    width: 28,
+    textAlign: 'center',
+  },
+  timelineName: {
+    flex: 1,
+    fontSize: 13,
+    color: c.textSecondary,
+    marginLeft: 6,
+  },
+  timelineNameActive: {
+    color: c.accent,
+    fontWeight: '600',
+  },
+  timelineDur: {
+    fontSize: 12,
+    color: c.textSecondary,
+    marginLeft: 8,
+  },
+  timelineDone: {
+    opacity: 0.4,
   },
   skipBtn: {
     alignSelf: 'center',
@@ -730,31 +824,5 @@ const styles = StyleSheet.create({
   stretchCloseBtnText: {
     fontSize: 14,
     color: c.textSecondary,
-  },
-  bottomBar: {
-    padding: 16,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: c.border,
-    backgroundColor: c.bg,
-  },
-  bottomCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: c.accent,
-    borderRadius: 16,
-    paddingVertical: 16,
-    gap: 8,
-  },
-  bottomCtaText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E1612',
-  },
-  bottomCtaArrow: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E1612',
   },
 });
