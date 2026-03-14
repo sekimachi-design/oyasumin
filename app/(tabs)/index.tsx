@@ -1,105 +1,179 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
-import { moodOptions, recommendedContent } from '../../constants/Content';
-import { useSettings } from '../../hooks/useSettings';
-import { useSleepLogs } from '../../hooks/useSleepLogs';
-import { useStats } from '../../hooks/useStats';
-import { Card } from '../../components/Card';
 
 const c = Colors.dark;
 
-export default function HomeScreen() {
-  const [selectedMood, setSelectedMood] = useState<number | null>(null);
-  const router = useRouter();
-  const { settings } = useSettings();
-  const { logs } = useSleepLogs();
-  const stats = useStats(logs);
+function newProblem() {
+  const a = Math.floor(Math.random() * 90) + 10;
+  const b = Math.floor(Math.random() * 90) + 10;
+  return { a, b, answer: a + b };
+}
+
+function toDigits(n: number, len: number): (number | null)[] {
+  const s = n.toString();
+  const arr: (number | null)[] = [];
+  for (let i = 0; i < len - s.length; i++) arr.push(null);
+  for (const ch of s) arr.push(Number(ch));
+  return arr;
+}
+
+export default function DrillScreen() {
+  const [problem, setProblem] = useState(newProblem);
+  const [input, setInput] = useState<number[]>([]);
+  const [status, setStatus] = useState<'input' | 'correct' | 'wrong'>('input');
+  const [score, setScore] = useState(0);
+
+  const ansLen = problem.answer.toString().length;
+  const cols = ansLen;
+
+  const aDigits = toDigits(problem.a, cols);
+  const bDigits = toDigits(problem.b, cols);
+
+  const ansDisplay: (number | null)[] = [];
+  for (let i = 0; i < cols; i++) {
+    const fromRight = cols - 1 - i;
+    ansDisplay.push(fromRight < input.length ? input[fromRight] : null);
+  }
+
+  const tapDigit = (d: number) => {
+    if (status === 'correct') return;
+    if (input.length >= ansLen) return;
+    if (status === 'wrong') setStatus('input');
+
+    const next = [...input, d];
+    setInput(next);
+
+    if (next.length === ansLen) {
+      let val = 0;
+      for (let i = 0; i < next.length; i++) val += next[i] * (10 ** i);
+      if (val === problem.answer) {
+        setStatus('correct');
+        setScore(s => s + 1);
+      } else {
+        setStatus('wrong');
+      }
+    }
+  };
+
+  const tapUndo = () => {
+    if (status === 'correct') return;
+    setStatus('input');
+    setInput(prev => prev.slice(0, -1));
+  };
+
+  const tapNext = () => {
+    setProblem(newProblem());
+    setInput([]);
+    setStatus('input');
+  };
+
+  const CELL = 56;
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.greeting}>
-          {settings.name || 'ゲスト'}さん、おつかれさま
-        </Text>
-        <Text style={styles.subGreeting}>今日もよく頑張りました</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>純太郎専用計算ドリル</Text>
+        <Text style={styles.scoreText}>🎯 {score}もん</Text>
+      </View>
 
-        <Card color={c.card}>
-          <Text style={styles.cardTitle}>🌙 今夜のおやすみプラン</Text>
-          <View style={styles.planRow}>
-            <View style={styles.planItem}>
-              <Text style={styles.planValue}>{settings.targetTime}</Text>
-              <Text style={styles.planLabel}>目標時刻</Text>
+      <View style={styles.problemArea}>
+        <View style={styles.digitRow}>
+          <View style={{ width: CELL }} />
+          {aDigits.map((d, i) => (
+            <View key={i} style={[styles.cell, { width: CELL }]}>
+              <Text style={styles.digit}>{d ?? ''}</Text>
             </View>
-            <View style={styles.planDivider} />
-            <View style={styles.planItem}>
-              <Text style={styles.planValue}>{stats.streak}日</Text>
-              <Text style={styles.planLabel}>連続記録</Text>
-            </View>
+          ))}
+        </View>
+
+        <View style={styles.digitRow}>
+          <View style={[styles.cell, { width: CELL }]}>
+            <Text style={styles.operator}>+</Text>
           </View>
-        </Card>
+          {bDigits.map((d, i) => (
+            <View key={i} style={[styles.cell, { width: CELL }]}>
+              <Text style={styles.digit}>{d ?? ''}</Text>
+            </View>
+          ))}
+        </View>
 
-        <Card color={c.card}>
-          <Text style={styles.cardTitle}>今の気分は？</Text>
-          <View style={styles.moodRow}>
-            {moodOptions.map((mood, i) => (
+        <View style={[styles.line, { width: CELL * (cols + 1) }]} />
+
+        <View style={styles.digitRow}>
+          <View style={{ width: CELL }} />
+          {ansDisplay.map((d, i) => (
+            <View
+              key={i}
+              style={[
+                styles.cell,
+                { width: CELL },
+                styles.answerCell,
+                d !== null && styles.answerFilled,
+                status === 'correct' && styles.answerCorrect,
+                status === 'wrong' && styles.answerWrong,
+              ]}
+            >
+              <Text style={[styles.digit, styles.answerDigit]}>
+                {d ?? ''}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {status === 'correct' && (
+          <Pressable onPress={tapNext} style={styles.feedback}>
+            <Text style={styles.correctText}>⭕ せいかい！</Text>
+            <Text style={styles.nextHint}>タップでつぎへ</Text>
+          </Pressable>
+        )}
+        {status === 'wrong' && (
+          <View style={styles.feedback}>
+            <Text style={styles.wrongText}>❌ もういちど！</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.pad}>
+        {[[1, 2, 3], [4, 5, 6], [7, 8, 9]].map((row, ri) => (
+          <View key={ri} style={styles.padRow}>
+            {row.map(d => (
               <Pressable
-                key={i}
-                style={[
-                  styles.moodButton,
-                  selectedMood === i && styles.moodSelected,
-                ]}
-                onPress={() => setSelectedMood(i)}
+                key={d}
+                style={({ pressed }) => [styles.padBtn, pressed && styles.padPressed]}
+                onPress={() => tapDigit(d)}
               >
-                <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-                <Text style={[
-                  styles.moodLabel,
-                  selectedMood === i && { color: c.accent },
-                ]}>
-                  {mood.label}
-                </Text>
+                <Text style={styles.padText}>{d}</Text>
               </Pressable>
             ))}
           </View>
-        </Card>
-
-        <Text style={styles.sectionTitle}>🎧 今夜のおすすめ</Text>
-        {recommendedContent.map((item) => (
-          <Pressable
-            key={item.id}
-            onPress={() => router.push({ pathname: '/night', params: { trackId: item.trackId } })}
-          >
-            <Card color={c.card}>
-              <View style={styles.contentRow}>
-                <Text style={styles.contentIcon}>{item.icon}</Text>
-                <View style={styles.contentText}>
-                  <Text style={styles.contentTitle}>{item.title}</Text>
-                  <Text style={styles.contentSub}>{item.subtitle}</Text>
-                </View>
-                <Text style={styles.playIcon}>▶</Text>
-              </View>
-            </Card>
-          </Pressable>
         ))}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.ctaButton,
-            pressed && { opacity: 0.8 },
-          ]}
-          onPress={() => router.push('/night')}
-        >
-          <Text style={styles.ctaText}>おやすみ準備を始める</Text>
-        </Pressable>
-      </ScrollView>
+        <View style={styles.padRow}>
+          <Pressable
+            style={({ pressed }) => [styles.padBtn, styles.undoBtn, pressed && styles.padPressed]}
+            onPress={tapUndo}
+          >
+            <Text style={styles.undoText}>⌫</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.padBtn, pressed && styles.padPressed]}
+            onPress={() => tapDigit(0)}
+          >
+            <Text style={styles.padText}>0</Text>
+          </Pressable>
+          {status === 'correct' ? (
+            <Pressable
+              style={({ pressed }) => [styles.padBtn, styles.nextBtn, pressed && styles.padPressed]}
+              onPress={tapNext}
+            >
+              <Text style={styles.nextBtnText}>つぎ →</Text>
+            </Pressable>
+          ) : (
+            <View style={[styles.padBtn, { backgroundColor: 'transparent' }]} />
+          )}
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -109,115 +183,129 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: c.bg,
   },
-  scroll: {
-    padding: 20,
-    paddingBottom: 40,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
-  greeting: {
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: c.accent,
+  },
+  scoreText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: c.text,
+  },
+  problemArea: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  digitRow: {
+    flexDirection: 'row',
+  },
+  cell: {
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  digit: {
+    fontSize: 38,
+    fontWeight: '700',
+    color: c.text,
+  },
+  operator: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: c.textSecondary,
+  },
+  line: {
+    height: 3,
+    backgroundColor: c.text,
+    marginVertical: 8,
+    borderRadius: 2,
+  },
+  answerCell: {
+    borderBottomWidth: 2,
+    borderBottomColor: c.border,
+    marginHorizontal: 3,
+    borderRadius: 4,
+  },
+  answerFilled: {
+    borderBottomColor: c.accent,
+  },
+  answerCorrect: {
+    backgroundColor: c.accent + '20',
+    borderBottomColor: c.accent,
+  },
+  answerWrong: {
+    backgroundColor: '#FF444420',
+    borderBottomColor: '#FF4444',
+  },
+  answerDigit: {
+    color: c.accent,
+  },
+  feedback: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  correctText: {
     fontSize: 24,
     fontWeight: '700',
-    color: c.text,
-    marginTop: 8,
-  },
-  subGreeting: {
-    fontSize: 14,
-    color: c.textSecondary,
-    marginTop: 4,
-    marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: c.text,
-    marginBottom: 12,
-  },
-  planRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  planItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  planValue: {
-    fontSize: 28,
-    fontWeight: '700',
     color: c.accent,
   },
-  planLabel: {
-    fontSize: 12,
-    color: c.textSecondary,
-    marginTop: 4,
-  },
-  planDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: c.border,
-  },
-  moodRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  moodButton: {
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 12,
-    minWidth: 68,
-  },
-  moodSelected: {
-    backgroundColor: c.accent + '30',
-    borderWidth: 1,
-    borderColor: c.accent,
-  },
-  moodEmoji: {
-    fontSize: 28,
-  },
-  moodLabel: {
-    fontSize: 11,
-    color: c.textSecondary,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: c.text,
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  contentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  contentIcon: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  contentText: {
-    flex: 1,
-  },
-  contentTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: c.text,
-  },
-  contentSub: {
+  nextHint: {
     fontSize: 13,
     color: c.textSecondary,
-    marginTop: 2,
+    marginTop: 4,
   },
-  playIcon: {
-    fontSize: 16,
-    color: c.accent,
+  wrongText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FF6B6B',
   },
-  ctaButton: {
-    backgroundColor: c.accent,
-    borderRadius: 16,
-    paddingVertical: 16,
+  pad: {
+    paddingHorizontal: 32,
+    paddingBottom: 20,
+  },
+  padRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  padBtn: {
+    width: 80,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: c.card,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
   },
-  ctaText: {
-    fontSize: 17,
+  padPressed: {
+    opacity: 0.6,
+  },
+  padText: {
+    fontSize: 26,
+    fontWeight: '600',
+    color: c.text,
+  },
+  undoBtn: {
+    backgroundColor: c.border,
+  },
+  undoText: {
+    fontSize: 24,
+    color: c.text,
+  },
+  nextBtn: {
+    backgroundColor: c.accent,
+  },
+  nextBtnText: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#120A26',
   },

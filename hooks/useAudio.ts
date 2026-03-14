@@ -5,15 +5,16 @@ export type Track = {
   id: string;
   title: string;
   icon: string;
+  image: ReturnType<typeof require>;
   file: ReturnType<typeof require>;
 };
 
 export const TRACKS: Track[] = [
-  { id: 'rain', title: '雨音', icon: '🌧️', file: require('../assets/audio/rain.mp3') },
-  { id: 'fire', title: '焚き火', icon: '🔥', file: require('../assets/audio/fire.mp3') },
-  { id: 'ocean', title: '波の音', icon: '🌊', file: require('../assets/audio/ocean.mp3') },
-  { id: 'forest', title: '森林', icon: '🌲', file: require('../assets/audio/forest.mp3') },
-  { id: 'whitenoise', title: 'ホワイトノイズ', icon: '🌀', file: require('../assets/audio/whitenoise.mp3') },
+  { id: 'rain', title: '雨音', icon: '🌧️', image: require('../assets/images/rain.jpg'), file: require('../assets/audio/rain.mp3') },
+  { id: 'fire', title: '焚き火', icon: '🔥', image: require('../assets/images/fire.jpg'), file: require('../assets/audio/fire.mp3') },
+  { id: 'ocean', title: '波の音', icon: '🌊', image: require('../assets/images/ocean.jpg'), file: require('../assets/audio/ocean.mp3') },
+  { id: 'forest', title: '森林', icon: '🌲', image: require('../assets/images/forest.jpg'), file: require('../assets/audio/forest.mp3') },
+  { id: 'whitenoise', title: 'ホワイトノイズ', icon: '🌀', image: require('../assets/images/whitenoise.jpg'), file: require('../assets/audio/whitenoise.mp3') },
 ];
 
 export const TIMER_OPTIONS = [

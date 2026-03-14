@@ -8,11 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { moodOptions } from '../../constants/Content';
 import { useSleepLogs } from '../../hooks/useSleepLogs';
@@ -25,18 +21,12 @@ export default function LogScreen() {
   const [note, setNote] = useState('');
   const [goodNight, setGoodNight] = useState(false);
   const { logs, addLog, todayLog } = useSleepLogs();
-
-  const opacity = useSharedValue(1);
-
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: 1 - opacity.value,
-  }));
+  const router = useRouter();
 
   const handleGoodNight = useCallback(async () => {
     await addLog(selectedMood, note);
-    opacity.value = withTiming(0, { duration: 2000 });
     setGoodNight(true);
-  }, [opacity, selectedMood, note, addLog]);
+  }, [selectedMood, note, addLog]);
 
   const recentLogs = [...logs]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -117,6 +107,15 @@ export default function LogScreen() {
             <View style={styles.goodNightMessage}>
               <Text style={styles.goodNightDone}>おやすみなさい 💤</Text>
               <Text style={styles.goodNightSub}>また明日ね</Text>
+              <Pressable
+                style={styles.backButton}
+                onPress={() => {
+                  setGoodNight(false);
+                  router.push('/(tabs)');
+                }}
+              >
+                <Text style={styles.backButtonText}>ホームに戻る</Text>
+              </Pressable>
             </View>
           </Card>
         )}
@@ -149,10 +148,6 @@ export default function LogScreen() {
           </Card>
         )}
       </ScrollView>
-
-      {goodNight && (
-        <Animated.View style={[styles.overlay, overlayStyle]} pointerEvents="none" />
-      )}
     </SafeAreaView>
   );
 }
@@ -247,9 +242,17 @@ const styles = StyleSheet.create({
     color: c.textSecondary,
     marginTop: 4,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
+  backButton: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: c.border,
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: c.text,
+    fontWeight: '500',
   },
   doneRow: {
     flexDirection: 'row',

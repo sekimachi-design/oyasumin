@@ -40,7 +40,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="night"
         options={{
-          title: 'コンテンツ',
+          title: 'ねる',
           tabBarIcon: ({ focused }) => (
             <TabIcon emoji="🌙" focused={focused} />
           ),
@@ -49,7 +49,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="log"
         options={{
-          title: 'ログ',
+          title: 'にっき',
           tabBarIcon: ({ focused }) => (
             <TabIcon emoji="📝" focused={focused} />
           ),
@@ -58,7 +58,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="report"
         options={{
-          title: 'レポート',
+          title: 'スコア',
           tabBarIcon: ({ focused }) => (
             <TabIcon emoji="📊" focused={focused} />
           ),

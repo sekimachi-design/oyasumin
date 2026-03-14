@@ -9,15 +9,25 @@ import { BarChart } from '../../components/BarChart';
 
 const c = Colors.morning;
 
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return { text: 'おはよう', emoji: '☀️' };
+  if (hour >= 12 && hour < 17) return { text: 'こんにちは', emoji: '🌤️' };
+  return { text: 'おつかれさま', emoji: '🌙' };
+}
+
 export default function ReportScreen() {
   const { logs } = useSleepLogs();
   const stats = useStats(logs);
+  const greeting = getTimeGreeting();
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.greeting}>おはよう ☀️</Text>
-        <Text style={styles.subtitle}>昨夜のレポート</Text>
+        <Text style={styles.greeting}>
+          {greeting.text} {greeting.emoji}
+        </Text>
+        <Text style={styles.subtitle}>あなたの睡眠レポート</Text>
 
         <Card color={c.card}>
           <Text style={styles.cardTitle}>スリープスコア</Text>
@@ -43,7 +53,10 @@ export default function ReportScreen() {
         <Card color={c.card}>
           <Text style={styles.cardTitle}>✨ ハイライト</Text>
           {stats.highlights.map((item, i) => (
-            <View key={i} style={styles.highlightRow}>
+            <View key={i} style={[
+              styles.highlightRow,
+              i === stats.highlights.length - 1 && { borderBottomWidth: 0 },
+            ]}>
               <View>
                 <Text style={styles.highlightLabel}>{item.label}</Text>
                 <Text style={styles.highlightChange}>{item.change}</Text>
